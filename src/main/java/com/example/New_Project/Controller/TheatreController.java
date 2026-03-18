@@ -3,6 +3,7 @@ package com.example.New_Project.Controller;
 import com.example.New_Project.DTO.TheatreDTO;
 import com.example.New_Project.Entity.Theatre;
 import com.example.New_Project.Service.TheatreService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,7 +20,7 @@ public class TheatreController {
 
    //  API to add a theatre [cite: 45]
     @PostMapping("/add")
-    public ResponseEntity<Theatre> addTheatre(TheatreDTO theatre) {
+    public ResponseEntity<Theatre> addTheatre(@Valid @RequestBody  TheatreDTO theatre) {
         Theatre save = theatreService.saveTheatre(theatre);
         return ResponseEntity.ok(save);
     }

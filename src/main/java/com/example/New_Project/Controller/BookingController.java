@@ -27,7 +27,7 @@ public class BookingController {
      * POST /api/bookings
      * Create a new booking. Returns 201 Created with the booking details.
      */
-    @PostMapping
+    @PostMapping("/create")
     public ResponseEntity<BookingResponseDTO> createBooking(
             @Valid @RequestBody BookingRequestDTO request) {
 

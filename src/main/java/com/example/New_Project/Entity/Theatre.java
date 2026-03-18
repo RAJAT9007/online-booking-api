@@ -50,7 +50,7 @@ public class Theatre {
      */
     @NotBlank(message = "Theatre registration ID cannot be blank")
     @Size(min = 5, max = 50, message = "Theatre registration ID must be between 5 and 50 characters")
-    @Column(unique = true, updatable = false, nullable = false, length = 50)
+    @Column(unique = true, updatable = false, nullable = false, length = 50, name = "register_id")
     private String theatreId;
 
     /**

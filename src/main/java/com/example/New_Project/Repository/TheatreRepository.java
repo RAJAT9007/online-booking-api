@@ -8,5 +8,5 @@ import java.util.List;
 
 @Repository
 public interface TheatreRepository extends JpaRepository<Theatre, Long> {
-    List<Theatre> findByCityId(Integer cityId); // To support "Select City" feature [cite: 8, 23]
+    List<Theatre> findByCityId(Long cityId); // To support "Select City" feature [cite: 8, 23]
 }
