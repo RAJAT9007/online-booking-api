@@ -19,8 +19,8 @@ public class TheatreController {
 
    //  API to add a theatre [cite: 45]
     @PostMapping("/add")
-    public ResponseEntity<Theatre> addTheatre(TheatreDTO theatre) {
-        Theatre save = theatreService.saveTheatre(theatre);
+    public ResponseEntity<TheatreDTO> addTheatre(@RequestBody TheatreDTO dto) {
+        TheatreDTO save = theatreService.saveTheatre(dto);
         return ResponseEntity.ok(save);
     }
 

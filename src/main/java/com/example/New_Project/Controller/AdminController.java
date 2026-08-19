@@ -10,6 +10,6 @@ public class AdminController {
 
     @GetMapping
     public String adminAccess() {
-        return "Hello Admin 🔥";
+        return "Hello Admin";
     }
 }

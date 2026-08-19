@@ -21,7 +21,9 @@ public class UserEntity {
     private String email;
     private String password;
     private String name;
-//    private Integer number;
+
+    @Column(name = "number")
+    private Long number;
 
     @Enumerated(EnumType.STRING)
     private Role role;

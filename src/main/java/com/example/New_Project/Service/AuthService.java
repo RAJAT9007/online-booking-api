@@ -33,15 +33,6 @@ public class AuthService {
     private final JwtUtil jwtUtil;
     private final AuthenticationManager authenticationManager;
 
-    /**
-     * Register a new user with email and password.
-     * Validates email uniqueness, password strength, and generates JWT token on success.
-     *
-     * @param request Contains name, email, password, and role
-     * @return JWT token for immediate session start
-     * @throws IllegalArgumentException if request is null
-     * @throws UserAlreadyExistsException if email already registered
-     */
     @Transactional(rollbackFor = Exception.class)
     public LoginResponse register(@Valid RegisterRequest request) {
         // 1. Validate input
@@ -61,20 +52,21 @@ public class AuthService {
                 .name(request.getName())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
+                .number(request.getNumber())
                 .role(request.getRole() != null ? request.getRole() : Role.USER)
                 .build();
 
         // 4. Save and generate token
         UserEntity saved = userRepository.save(user);
-        
+
         // Create JWT token for immediate login after registration
         String token = jwtUtil.generateToken(
                 new CustomUserDetails(saved),
                 saved.getRole()
         );
 
-        log.info("✅ User registered successfully: id={}, email={}, role={}", 
-                saved.getId(), saved.getEmail(), saved.getRole());
+        log.info(" User registered successfully: id={}, email={}, role={}, number={}",
+                saved.getId(), saved.getEmail(), saved.getRole(), saved.getNumber());
 
         return new LoginResponse(token);
     }
@@ -108,12 +100,14 @@ public class AuthService {
 
             // 3. Extract user details and generate token
             CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-            String token = jwtUtil.generateToken(userDetails, userDetails.getUser().getRole());
+            UserEntity user = userDetails.getUser();
+            String token = jwtUtil.generateToken(userDetails, user.getRole());
 
-            log.info("✅ User logged in successfully: email={}, role={}", 
-                    userDetails.getUsername(), userDetails.getUser().getRole());
+            log.info(" User logged in successfully: id={}, email={}, role={}",
+                    user.getId(), user.getEmail(), user.getRole());
 
-            return new LoginResponse(token);
+            //  Return token + user info so frontend can persist email, role, ownerId
+            return new LoginResponse(token, user.getId(), user.getEmail(), user.getRole());
 
         } catch (BadCredentialsException e) {
             log.warn("Login failed - invalid credentials for email: {}", request.getEmail());

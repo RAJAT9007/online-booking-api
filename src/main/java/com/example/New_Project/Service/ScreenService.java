@@ -4,41 +4,61 @@ import com.example.New_Project.DTO.ScreenDTO;
 import com.example.New_Project.Entity.Screen;
 import com.example.New_Project.Repository.ScreenRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+
 @Service
 public class ScreenService {
 
     @Autowired
     private ScreenRepository screenRepository;
 
-    // Used internally by TheatreService — not called from Postman
+    // @Lazy avoids circular dependency: ScreenService ↔ SeatService
+    @Autowired
+    @Lazy
+    private SeatService seatService;
+
+    /**
+     * Creates a screen and immediately auto-generates 200 seats for it.
+     * This is the single entry point for screen creation.
+     */
+    @Transactional
     public Screen addScreen(ScreenDTO dto) {
         Screen screen = new Screen();
-        screen.setTheatreId((long)dto.getTheatreId());
+        screen.setTheatreId((long) dto.getTheatreId());
         screen.setScreenName(dto.getScreenName());
-        screen.setTotalSeats(dto.getTotalSeats());
+        screen.setTotalSeats(dto.getTotalSeats() != null ? dto.getTotalSeats() : 200);
         screen.setStatus("ACTIVE");
-        return screenRepository.save(screen);
+
+        Screen saved = screenRepository.save(screen);
+
+        //  Auto-generate 200 seats immediately after screen is created
+        try {
+            seatService.createSeatsForScreen(saved.getId());
+        } catch (Exception e) {
+            // Log but don't fail screen creation if seat gen fails
+            System.err.println(" Seat generation failed for screen " + saved.getId() + ": " + e.getMessage());
+        }
+
+        return saved;
     }
 
-    // ✅ Angular calls this to get screens of a theatre
-    public List<Screen> getScreensByTheatre(Long theatreId) {  // ← Long not Integer
+    public List<Screen> getScreensByTheatre(Long theatreId) {
         return screenRepository.findByTheatreId(theatreId);
     }
 
-    // Admin can update screen name or status
     public Screen updateScreen(Long id, ScreenDTO dto) {
         Screen screen = screenRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Screen not found"));
+                .orElseThrow(() -> new RuntimeException("Screen not found: " + id));
         screen.setScreenName(dto.getScreenName());
         screen.setTotalSeats(dto.getTotalSeats());
-        screen.setStatus(dto.getStatus());
+        if (dto.getStatus() != null) screen.setStatus(dto.getStatus());
         return screenRepository.save(screen);
     }
 
-    // Admin can delete screen
     public void deleteScreen(Long id) {
         screenRepository.deleteById(id);
     }

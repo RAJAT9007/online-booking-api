@@ -14,7 +14,6 @@ public class ShowService {
     @Autowired
     private ShowRepository showRepository;
 
-
     public Show addShow(ShowDTO dto) {
         Show show = new Show();
         show.setScreenId(dto.getScreenId());
@@ -26,11 +25,14 @@ public class ShowService {
         return showRepository.save(show);
     }
 
-
     public List<Show> getShowsForMovie(Integer movieId) {
         return showRepository.findByMovieId(movieId);
     }
 
+    // NEW: get shows for a specific screen
+    public List<Show> getShowsForScreen(Integer screenId) {
+        return showRepository.findByScreenId(screenId);
+    }
 
     public void deleteShow(Long id) {
         showRepository.deleteById(id);

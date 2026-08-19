@@ -11,4 +11,8 @@ public interface CityRepository extends JpaRepository<CityEntity, Long> {
 
     boolean existsByCityName(String cityName);
 
+    Optional<CityEntity> findById(Long id);
+
+    Optional<CityEntity> findByPincode(Long pincode);
+
 }

@@ -2,6 +2,7 @@ package com.example.New_Project.Controller;
 
 import com.example.New_Project.DTO.BookingRequestDTO;
 import com.example.New_Project.DTO.BookingResponseDTO;
+import com.example.New_Project.Entity.Booking;
 import com.example.New_Project.Service.BookingService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
@@ -12,23 +13,45 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import com.example.New_Project.DTO.BookingRequestDTO; // <-- Add this line
+import com.example.New_Project.Repository.BookingSeatRepository;
+import com.example.New_Project.enums.BookingStatus;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/bookings")
+@CrossOrigin(origins = "http://localhost:4200")
 @RequiredArgsConstructor
 @Validated
 public class BookingController {
 
     private final BookingService bookingService;
+    private final BookingSeatRepository bookingSeatRepository;
+
+    /**
+     * GET /api/bookings/booked-seats/{showId}
+     * Returns IDs of all seats already booked (CONFIRMED) for a given show.
+     * Used by the seat-layout UI to show which seats are unavailable.
+     */
+    @GetMapping("/booked-seats/{showId}")
+    public ResponseEntity<List<Long>> getBookedSeatIds(@PathVariable Long showId) {
+        List<Long> bookedIds = bookingSeatRepository.findBookedSeatIds(
+                showId,
+                bookingSeatRepository.findAllSeatIdsForShow(showId),
+                BookingStatus.CONFIRMED);
+        return ResponseEntity.ok(bookedIds);
+    }
 
     /**
      * POST /api/bookings
      * Create a new booking. Returns 201 Created with the booking details.
      */
-    @PostMapping
-    public ResponseEntity<BookingResponseDTO> createBooking(
+    @PostMapping("/create")
+    public ResponseEntity<BookingResponseDTO> createBookings(
             @Valid @RequestBody BookingRequestDTO request) {
 
         return ResponseEntity
@@ -42,8 +65,7 @@ public class BookingController {
      */
     @GetMapping
     public ResponseEntity<Page<BookingResponseDTO>> getAllBookings(
-            @PageableDefault(size = 20, sort = "bookingTime", direction = Sort.Direction.DESC)
-            Pageable pageable) {
+            @PageableDefault(size = 20, sort = "bookingDateTime", direction = Sort.Direction.DESC) Pageable pageable) {
 
         return ResponseEntity.ok(bookingService.getAllBookings(pageable));
     }
@@ -64,12 +86,9 @@ public class BookingController {
      * Paginated booking history for a specific user.
      */
     @GetMapping("/users/{userId}")
-    public ResponseEntity<Page<BookingResponseDTO>> getUserBookingHistory(
-            @PathVariable @Positive(message = "User ID must be a positive number") Long userId,
-            @PageableDefault(size = 10, sort = "bookingTime", direction = Sort.Direction.DESC)
-            Pageable pageable) {
-
-        return ResponseEntity.ok(bookingService.getUserBookingHistory(userId, pageable));
+    public ResponseEntity<List<Booking>> getUserBookings(@PathVariable Long userId) {
+        List<Booking> userBookings = bookingService.getBookingsByUserId(userId);
+        return ResponseEntity.ok(userBookings);
     }
 
     /**
@@ -85,7 +104,8 @@ public class BookingController {
 
     /**
      * DELETE /api/bookings/{id}
-     * Permanently remove a booking and its associated seats. Returns 204 No Content.
+     * Permanently remove a booking and its associated seats. Returns 204 No
+     * Content.
      */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteBooking(
@@ -93,5 +113,11 @@ public class BookingController {
 
         bookingService.deleteBooking(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}/confirm")
+    public ResponseEntity<BookingResponseDTO> confirmBookingPayment(
+            @PathVariable Long id) {
+        return ResponseEntity.ok(bookingService.confirmBookingPayment(id));
     }
 }

@@ -26,7 +26,7 @@ public class CustomUserDetails implements UserDetails {
         // Fallback to "USER" if role is null to prevent application crash
         String roleName = (user.getRole() != null) ? user.getRole().name() : "USER";
 
-        return List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
+        return List.of(new SimpleGrantedAuthority("ROLE_" + roleName));
     }
 
     @Override

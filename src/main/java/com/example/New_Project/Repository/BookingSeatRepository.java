@@ -49,4 +49,11 @@ public interface BookingSeatRepository extends JpaRepository<BookingSeat, Long> 
      */
     @Query("SELECT COUNT(bs) FROM BookingSeat bs WHERE bs.booking.id = :bookingId")
     long countByBookingId(@Param("bookingId") Long bookingId);
+
+    /**
+     * Get all seat IDs ever associated with a show (any booking status).
+     * Used as the candidate list when checking for booking conflicts.
+     */
+    @Query("SELECT bs.seatId FROM BookingSeat bs WHERE bs.booking.showId = :showId")
+    List<Long> findAllSeatIdsForShow(@Param("showId") Long showId);
 }

@@ -11,7 +11,7 @@ public interface SeatRepository extends JpaRepository<Seat, Long> {
 
     List<Seat> findByScreen_Id(Long screenId);
 
-    List<Seat> findByScreen_IdAndStatus(Long screenId, String status);
+//    List<Seat> findByScreen_IdAndStatus(Long screenId, String status);
 
     /** Used by BookingService to validate all requested seat IDs exist in a single query */
     long countByIdIn(List<Long> ids);

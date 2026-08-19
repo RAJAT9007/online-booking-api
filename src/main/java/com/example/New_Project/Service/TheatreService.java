@@ -27,25 +27,34 @@ public class TheatreService {
     @Autowired
     private SeatRepository seatRepository;      // ← add this
 
-    // ✅ Only this method changes — rest stays exactly the same!
-    public Theatre saveTheatre(TheatreDTO dto) {
+    //  Only this method changes — rest stays exactly the same!
+    public TheatreDTO saveTheatre(TheatreDTO dto) {
+
+        Theatre theatrEntity = new Theatre();
+        theatrEntity.setName(dto.getName());
+        theatrEntity.setAddress(dto.getAddress());
+        theatrEntity.setCityId(dto.getCityId());
+        theatrEntity.setOwnerId(dto.getOwnerId());
+        theatrEntity.setStatus(com.example.New_Project.enums.TheatreStatus.ACTIVE);
+        theatrEntity.setTheatreId("THR-" + UUID.randomUUID()
+                .toString().substring(0, 8));
+
+        Theatre savedTheatre = theatreRepository.save(theatrEntity);
 
         // Your existing code — unchanged
-        Theatre theatre = new Theatre();
-        theatre.setName(dto.getName());
-        theatre.setAddress(dto.getAddress());
-        theatre.setCityId(dto.getCityId());
-        theatre.setOwnerId(dto.getOwnerId());
-        theatre.setStatus(com.example.New_Project.enums.TheatreStatus.ACTIVE);
-        theatre.setTheatreId("THR-" + UUID.randomUUID()
-                .toString().substring(0, 8));
-        Theatre savedTheatre = theatreRepository.save(theatre);
+        TheatreDTO responseDTO = new TheatreDTO();
+//        responseDTO.setTheatreId(savedTheatre.getTheatreId());
+        responseDTO.setName(savedTheatre.getName());
+        responseDTO.setAddress(savedTheatre.getAddress());
+        responseDTO.setCityId(savedTheatre.getCityId());
+        responseDTO.setOwnerId(savedTheatre.getOwnerId());
+        responseDTO.setStatus(savedTheatre.getStatus().name());
 
-        return savedTheatre;
+        return responseDTO;
     }
 
 
-    // ✅ Everything below stays EXACTLY the same!
+    //  Everything below stays EXACTLY the same!
     public List<Theatre> getAllTheatres() {
         return theatreRepository.findAll();
     }

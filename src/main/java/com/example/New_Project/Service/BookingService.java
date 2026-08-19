@@ -4,6 +4,7 @@ import com.example.New_Project.DTO.BookingRequestDTO;
 import com.example.New_Project.DTO.BookingResponseDTO;
 import com.example.New_Project.Entity.Booking;
 import com.example.New_Project.Entity.BookingSeat;
+import com.example.New_Project.Entity.Seat;
 import com.example.New_Project.Entity.Show;
 import com.example.New_Project.Exception.BookingAlreadyCancelledException;
 import com.example.New_Project.Exception.BookingNotFoundException;
@@ -14,6 +15,7 @@ import com.example.New_Project.Repository.BookingSeatRepository;
 import com.example.New_Project.Repository.SeatRepository;
 import com.example.New_Project.Repository.ShowRepository;
 import com.example.New_Project.enums.BookingStatus;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -35,11 +37,11 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class BookingService {
 
-    private final BookingRepository     bookingRepository;
+    private final BookingRepository bookingRepository;
     private final BookingSeatRepository bookingSeatRepository;
-    private final ShowRepository        showRepository;
-    private final SeatRepository        seatRepository;
-    private final Clock                 clock;
+    private final ShowRepository showRepository;
+    private final SeatRepository seatRepository;
+    private final Clock clock;
 
     // -------------------------------------------------------------------------
     // COMMANDS (Write Operations)
@@ -47,19 +49,21 @@ public class BookingService {
 
     /**
      * Creates a confirmed booking securely.
-     * Validates show, seats, availability, and computes the price server-side 
+     * Validates show, seats, availability, and computes the price server-side
      * to prevent client-side payment tampering.
      */
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
     public BookingResponseDTO createBooking(BookingRequestDTO request) {
         Objects.requireNonNull(request, "BookingRequestDTO must not be null");
-        
+
         if (request.getSeatIds() == null || request.getSeatIds().isEmpty()) {
             throw new IllegalArgumentException("At least one seat must be selected");
         }
 
-        log.info("Processing booking creation [IdempotencyKey={}]: userId={}, showId={}, requestedSeats={}",
-                request.getIdempotencyKey(), request.getUserId(), request.getShowId(), request.getSeatIds());
+        log.info(
+                "Processing booking creation [IdempotencyKey={}]: userId={}, showId={}, requestedSeats={}, requestedTheaterId={}",
+                request.getIdempotencyKey(), request.getUserId(), request.getShowId(), request.getSeatIds(),
+                request.getTheatreId());
 
         // 1. Validate Show and fetch pricing
         Show show = showRepository.findById(request.getShowId())
@@ -68,26 +72,31 @@ public class BookingService {
         // 2. Deduplicate requested seat IDs (preserving order) to prevent logic errors
         List<Long> seatIds = new ArrayList<>(new LinkedHashSet<>(request.getSeatIds()));
 
-        // 3. Validate every requested seat exists in the DB
-        long existingSeatsCount = seatRepository.countByIdIn(seatIds);
-        if (existingSeatsCount != seatIds.size()) {
-            log.warn("Seat existence check failed. Found {} out of {}", existingSeatsCount, seatIds.size());
+        // 3. Fetch Seats, Validate Existence
+        List<Seat> seats = seatRepository.findAllById(seatIds);
+        if (seats.size() != seatIds.size()) {
+            log.warn("Seat existence check failed. Found {} out of {}", seats.size(), seatIds.size());
             throw new ResourceNotFoundException("One or more Seats", -1L);
         }
 
         // 4. Server-Side Price Calculation (CRITICAL SECURITY FIX)
-        BigDecimal seatPrice = BigDecimal.valueOf(show.getPrice() != null ? show.getPrice() : 0.0);
-        BigDecimal serverCalculatedTotal = seatPrice.multiply(BigDecimal.valueOf(seatIds.size()));
+        BigDecimal serverCalculatedTotal = seats.stream()
+                .map(seat -> BigDecimal.valueOf(seat.getPrice() != null ? seat.getPrice() : 0.0))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         if (request.getTotalAmount().compareTo(serverCalculatedTotal) != 0) {
-            log.warn("🚨 PRICE MISMATCH DETECTED! User {} sent {}, Server calculated {}", 
+            log.warn("🚨 PRICE MISMATCH DETECTED! User {} sent {}, Server calculated {}",
                     request.getUserId(), request.getTotalAmount(), serverCalculatedTotal);
             throw new IllegalArgumentException("Invalid payment amount. Expected: " + serverCalculatedTotal);
         }
 
-        // 5. Concurrency Guard: Ensure seats aren't already booked for this show
-        List<Long> conflictingSeats = bookingSeatRepository
-                .findBookedSeatIds(request.getShowId(), seatIds, BookingStatus.CONFIRMED);
+        // 5. Concurrency Guard: Ensure seats aren't already booked or actively being
+        // paid for
+        List<Long> conflictingSeats = new ArrayList<>();
+        conflictingSeats
+                .addAll(bookingSeatRepository.findBookedSeatIds(request.getShowId(), seatIds, BookingStatus.CONFIRMED));
+        conflictingSeats
+                .addAll(bookingSeatRepository.findBookedSeatIds(request.getShowId(), seatIds, BookingStatus.PENDING));
 
         if (!conflictingSeats.isEmpty()) {
             log.warn("Seat conflict for showId={}, conflictingSeats={}", request.getShowId(), conflictingSeats);
@@ -98,9 +107,10 @@ public class BookingService {
         Booking booking = Booking.builder()
                 .userId(request.getUserId())
                 .showId(request.getShowId())
+                .theatreId(request.getTheatreId())
                 .totalAmount(serverCalculatedTotal)
                 .bookingDateTime(LocalDateTime.now(clock))
-                .status(BookingStatus.CONFIRMED)
+                .status(BookingStatus.PENDING)
                 .build();
 
         Booking saved = bookingRepository.save(booking);
@@ -119,10 +129,36 @@ public class BookingService {
             showRepository.decrementAvailableSeats(request.getShowId(), seatIds.size());
         }
 
-        log.info("✅ Booking confirmed: bookingId={}, userId={}, showId={}", 
-                saved.getId(), saved.getUserId(), saved.getShowId());
+        log.info(" Booking confirmed: bookingId={}, userId={}, showId={}, theaterId={}",
+                saved.getId(), saved.getUserId(), saved.getShowId(), saved.getTheatreId());
 
         return toResponseDTO(saved);
+    }
+
+    @Transactional
+    public BookingResponseDTO confirmBookingPayment(Long bookingId) {
+
+        Booking booking = fetchBookingOrThrow(bookingId);
+
+        if (booking.getStatus() != BookingStatus.PENDING) {
+            throw new RuntimeException("Booking not in pending state");
+        }
+
+        // Re-check seat conflicts
+        List<Long> seatIds = bookingSeatRepository.findSeatIdsByBookingId(bookingId);
+
+        List<Long> conflicts = bookingSeatRepository.findBookedSeatIds(
+                booking.getShowId(),
+                seatIds,
+                BookingStatus.CONFIRMED);
+
+        if (!conflicts.isEmpty()) {
+            throw new SeatsAlreadyBookedException(conflicts);
+        }
+
+        booking.setStatus(BookingStatus.CONFIRMED);
+
+        return toResponseDTO(booking);
     }
 
     /**
@@ -140,10 +176,10 @@ public class BookingService {
         }
 
         booking.setStatus(BookingStatus.CANCELLED);
-        
+
         // Get seat count without loading all seats (single query)
         long seatCount = bookingSeatRepository.countByBookingId(bookingId);
-        
+
         // Batch update available seats
         if (seatCount > 0) {
             showRepository.incrementAvailableSeats(booking.getShowId(), (int) seatCount);
@@ -174,19 +210,25 @@ public class BookingService {
     // QUERIES (Read Operations)
     // -------------------------------------------------------------------------
 
-    /** Returns a paginated list of all bookings (Admin use). */
+    /**
+     * Returns a paginated list of all bookings (Admin use).
+     */
     @Transactional(readOnly = true)
     public Page<BookingResponseDTO> getAllBookings(Pageable pageable) {
         return bookingRepository.findAll(pageable).map(this::toResponseDTO);
     }
 
-    /** Returns a single booking by ID. */
+    /**
+     * Returns a single booking by ID.
+     */
     @Transactional(readOnly = true)
     public BookingResponseDTO getBookingById(Long bookingId) {
         return toResponseDTO(fetchBookingOrThrow(bookingId));
     }
 
-    /** Returns paginated booking history for a specific user. */
+    /**
+     * Returns paginated booking history for a specific user.
+     */
     @Transactional(readOnly = true)
     public Page<BookingResponseDTO> getUserBookingHistory(Long userId, Pageable pageable) {
         return bookingRepository.findByUserId(userId, pageable).map(this::toResponseDTO);
@@ -204,6 +246,13 @@ public class BookingService {
                 });
     }
 
+    private @NotNull Long getUserId() {
+
+        // In a real application, this would come from the security context or session
+        // For this example, we'll just return a placeholder value
+        return null; // TODO: Replace with actual user ID retrieval logic
+    }
+
     private BookingResponseDTO toResponseDTO(Booking booking) {
         // Fetch only seatIds in a single query (avoid N+1 lazy-loading)
         List<Long> seatIds = bookingSeatRepository.findSeatIdsByBookingId(booking.getId());
@@ -219,4 +268,36 @@ public class BookingService {
                 .seatIds(seatIds)
                 .build();
     }
+
+    public List<Booking> getBookingsByUserId(Long userId) {
+        // This avoids the 'bookingTime' property error entirely
+        return bookingRepository.findByUserId(userId);
+    }
+
+    // -------------------------------------------------------------------------
+    // CRON JOBS (Automated Server-Side Cleanup)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Cleans up completely orphaned bookings that were abandoned mid-checkout.
+     * Evaluates every 60 seconds. Flushes seats older than 10 minutes.
+     */
+    @org.springframework.scheduling.annotation.Scheduled(fixedRate = 60000)
+    @Transactional(rollbackFor = Exception.class)
+    public void cleanupAbandonedBookings() {
+        LocalDateTime cutoff = LocalDateTime.now(clock).minusMinutes(10);
+        List<Booking> abandoned = bookingRepository.findByStatusAndBookingDateTimeBefore(BookingStatus.PENDING, cutoff);
+
+        for (Booking booking : abandoned) {
+            log.info("🧹 Sweeping ghost transaction: Canceling expired PENDING booking: {}", booking.getId());
+
+            booking.setStatus(BookingStatus.CANCELLED);
+
+            long seatCount = bookingSeatRepository.countByBookingId(booking.getId());
+            if (seatCount > 0) {
+                showRepository.incrementAvailableSeats(booking.getShowId(), (int) seatCount);
+            }
+        }
+    }
+
 }

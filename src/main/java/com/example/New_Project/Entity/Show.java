@@ -6,7 +6,7 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "screen_timing")
+@Table(name = "show_times")
 @Data
 public class Show {
 

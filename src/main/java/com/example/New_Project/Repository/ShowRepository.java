@@ -1,6 +1,7 @@
 package com.example.New_Project.Repository;
 
 import com.example.New_Project.Entity.Show;
+import com.example.New_Project.Entity.ShowSeat;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -16,7 +17,9 @@ import java.util.List;
 public interface ShowRepository extends JpaRepository<Show, Long> {
 
     List<Show> findByMovieId(Integer movieId);
+
     List<Show> findByScreenId(Integer screenId);
+    // In ShowSeatRepository.java
 
     @Modifying
     @Transactional
@@ -28,6 +31,5 @@ public interface ShowRepository extends JpaRepository<Show, Long> {
     @Query("UPDATE Show s SET s.availableSeats = s.availableSeats - :size WHERE s.id = :showId AND s.availableSeats >= :size")
     void decrementAvailableSeats(
             @Param("showId") @NotNull @Positive Long showId,
-            @Param("size") int size
-    );
+            @Param("size") int size);
 }

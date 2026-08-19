@@ -51,7 +51,7 @@ public class BookingSeatService {
                 .build();
 
         BookingSeat saved = bookingSeatRepository.save(bookingSeat);
-        log.info("✅ Seat assigned to booking: bookingId={}, seatId={}, bookingSeatId={}", 
+        log.info(" Seat assigned to booking: bookingId={}, seatId={}, bookingSeatId={}",
                 booking.getId(), dto.getSeatId(), saved.getId());
 
         return saved;
@@ -121,7 +121,7 @@ public class BookingSeatService {
         existing.setSeatId(dto.getSeatId());
         
         BookingSeat updated = bookingSeatRepository.save(existing);
-        log.info("✅ BookingSeat updated: id={}, newSeatId={}", id, dto.getSeatId());
+        log.info(" BookingSeat updated: id={}, newSeatId={}", id, dto.getSeatId());
 
         return updated;
     }
@@ -150,7 +150,7 @@ public class BookingSeatService {
 
         // 3. Delete the record
         bookingSeatRepository.deleteById(id);
-        log.info("✅ BookingSeat removed: id={}, bookingId={}, seatId={}", 
+        log.info(" BookingSeat removed: id={}, bookingId={}, seatId={}",
                 id, existing.getBooking().getId(), existing.getSeatId());
     }
 
@@ -168,6 +168,6 @@ public class BookingSeatService {
         }
 
         bookingSeatRepository.deleteByBookingId(bookingId);
-        log.info("✅ All seats removed for booking: bookingId={}", bookingId);
+        log.info(" All seats removed for booking: bookingId={}", bookingId);
     }
 }

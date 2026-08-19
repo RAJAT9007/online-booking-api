@@ -5,9 +5,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
@@ -26,14 +24,16 @@ import java.util.Objects;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
+@Getter
+@Setter
 @Table(
-    name = "theatres",
-    indexes = {
-        @Index(name = "idx_theatre_id", columnList = "theatre_id", unique = true),
-        @Index(name = "idx_city_id", columnList = "city_id"),
-        @Index(name = "idx_owner_id", columnList = "owner_id"),
-        @Index(name = "idx_status", columnList = "status")
-    }
+    name = "theatres"
+//    ,indexes = {
+//        @Index(name = "idx_theatre_id", columnList = "theatre_id", unique = true),
+//        @Index(name = "idx_city_id", columnList = "city_id"),
+//        @Index(name = "idx_owner_id", columnList = "owner_id"),
+//        @Index(name = "idx_status", columnList = "status")
+//    }
 )
 public class Theatre {
     
@@ -48,9 +48,9 @@ public class Theatre {
      * Unique registration ID for the theatre (immutable)
      * Format: THEATRE_[timestamp]_[random] recommended
      */
-    @NotBlank(message = "Theatre registration ID cannot be blank")
+    //@NotBlank(message = "Theatre registration ID cannot be blank")
     @Size(min = 5, max = 50, message = "Theatre registration ID must be between 5 and 50 characters")
-    @Column(unique = true, updatable = false, nullable = false, length = 50)
+    @Column(name  = "register_id")
     private String theatreId;
 
     /**

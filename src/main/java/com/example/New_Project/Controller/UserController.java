@@ -10,6 +10,6 @@ public class UserController {
 
     @GetMapping
     public String userAccess() {
-        return "Hello User 👤";
+        return "Hello User ";
     }
 }

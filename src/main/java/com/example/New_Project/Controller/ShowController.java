@@ -28,6 +28,13 @@ public class ShowController {
         return ResponseEntity.ok(showService.getShowsForMovie(movieId));
     }
 
+    // NEW: Get shows by screenId — used by manage-theatre
+    @GetMapping("/screen/{screenId}")
+    public ResponseEntity<List<Show>> getByScreen(@PathVariable Integer screenId) {
+        return ResponseEntity.ok(showService.getShowsForScreen(screenId));
+    }
+
+    // FIXED: delete endpoint was /{id} — frontend was calling /delete/{id}
     @DeleteMapping("/{id}")
     public ResponseEntity<String> removeShow(@PathVariable Long id) {
         showService.deleteShow(id);

@@ -18,5 +18,7 @@ public class CityEntity {
     private Long id;
     @Column(name = "name")
     private String cityName;
+
+    @Column(name  = "city_id")
     private Long pincode;
 }

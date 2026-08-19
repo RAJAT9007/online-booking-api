@@ -18,8 +18,8 @@ public class MoviesController {
     private MovieService movieService;
 
         @PostMapping("/add")
-        public ResponseEntity<MovieDTO> addmovies(@RequestBody MovieDTO dto) {
-            MovieDTO save = movieService.addmovies(dto);
+        public ResponseEntity<MovieDTO> addmovie(@RequestBody MovieDTO dto) {
+            MovieDTO save = movieService.addmovie(dto);
             return ResponseEntity.ok(save);
         }
 
@@ -30,14 +30,25 @@ public class MoviesController {
         }
 
     @DeleteMapping("/delete/{id}")
-    public ResponseEntity<String> deleteMovie(@PathVariable Long id) {
+    public ResponseEntity<String> deleteMovieById(@PathVariable Long id) {
         return ResponseEntity.ok(movieService.deleteMovie(id));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<MovieEntity> getMovieId(@PathVariable Long id){
-//        System.out.println("hello");
-        MovieEntity movie = movieService.getMoviesById(id);
-        return ResponseEntity.ok(movie);
+    public ResponseEntity<MovieDTO> getMovieId(@PathVariable Long id){
+        MovieDTO movieDTO = movieService.getMoviesById(id);
+        return ResponseEntity.ok(movieDTO);
+    }
+
+    @PutMapping("/update/{id}")
+    public ResponseEntity<MovieDTO> updateMovie(@PathVariable Long id, @RequestBody MovieDTO dto){
+            MovieDTO movieDTO = movieService.updateMovie(id, dto);
+            return ResponseEntity.ok(movieDTO);
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<List<MovieDTO>> searchMoviesByTitle(@RequestParam String title) {
+        List<MovieDTO> movies = movieService.searchMoviesByTitle(title);
+        return ResponseEntity.ok(movies);
     }
 }

@@ -23,18 +23,20 @@ public class BookingRequestDTO {
     @Positive(message = "User ID must be a positive number")
     private Long userId;
 
-    @NotNull(message = "Show ID is required")
     @Positive(message = "Show ID must be a positive number")
     private Long showId;
 
-    @NotEmpty(message = "At least one seat must be selected")
+    // private String seat_id;
+
     @Size(max = 10, message = "Cannot book more than 10 seats in a single booking")
     private List<@NotNull(message = "Seat ID cannot be null") @Positive(message = "Seat ID must be positive") Long> seatIds;
 
-    @NotNull(message = "Total amount is required")
     @Positive(message = "Total amount must be greater than zero")
     private BigDecimal totalAmount;
 
-    @NotNull(message = "Idempotency key is required to prevent duplicate bookings")
+    // (message = "Idempotency key is required to prevent duplicate bookings")
     private String idempotencyKey;
+
+    // Transient payload passthrough for Theatre tracking
+    private Long theatreId;
 }

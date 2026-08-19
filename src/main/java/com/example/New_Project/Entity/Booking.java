@@ -40,12 +40,16 @@ public class Booking {
     private Long version;
 
     @NotNull
-    @Column(name = "user_id", nullable = false)
+    @Column(name = "user_id")
     private Long userId;
 
     @NotNull
     @Column(name = "show_id", nullable = false)
     private Long showId;
+
+    @NotNull
+    @Column(name = "theatreId")
+    private Long theatreId;
 
     @NotNull
     @PastOrPresent  // Ensures booking time is not in the future

@@ -5,6 +5,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
@@ -17,16 +18,25 @@ import java.util.Map;
 @Component
 public class JwtUtil {
 
-    private final String SECRET = "mysecretkeymysecretkeymysecretkey"; // minimum 32 chars
+    @Value("${jwt.secret:${JWT_SECRET:bXlTZWNyZXRLZXlGb3JUaWNrZXRCb29raW5nQXBpV2l0aEF0TGVhc3QyNTZCaXRzT2ZMZW5ndGhGb3JTZWN1cml0eVNpZ25hdHVyZSE=}}")
+    private String SECRET;// minimum 32 chars (must be at least 256 bits / 32 characters for HS256)
 
     private Key getSignKey() {
-        return Keys.hmacShaKeyFor(SECRET.getBytes());
+        byte[] secretBytes = SECRET.getBytes();
+        // Ensure secret is at least 256 bits (32 bytes) for HS256
+        if (secretBytes.length < 32) {
+            throw new IllegalArgumentException("JWT secret key must be at least 256 bits (32 characters). Current length: " + secretBytes.length);
+        }
+        return Keys.hmacShaKeyFor(secretBytes);
     }
 
     public String generateToken(UserDetails userDetails, Role role) {
 
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", role.name());
+        if (userDetails instanceof CustomUserDetails) {
+            claims.put("userId", ((CustomUserDetails) userDetails).getUser().getId());
+        }
 
         return Jwts.builder()
                 .setClaims(claims)
@@ -61,6 +71,3 @@ public class JwtUtil {
                 .getBody();
     }
 }
-
-
-
